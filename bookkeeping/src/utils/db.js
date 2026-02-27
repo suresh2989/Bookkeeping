@@ -1,25 +1,67 @@
-import Dexie from 'dexie';
+import { supabase } from './supabase';
 
-export const db = new Dexie('SureshBookkeepingDB');
+export async function getAttachmentsByTransaction(transactionId) {
+  const { data, error } = await supabase
+    .from('attachments')
+    .select('*')
+    .eq('transaction_id', transactionId);
+  if (error) throw error;
+  return data || [];
+}
 
-db.version(1).stores({
-  attachments: 'id, transactionId',
-});
+export async function addAttachment({ id, transactionId, name, type, size, blob }) {
+  const path = `${transactionId}/${id}-${name}`;
+  const { error: uploadError } = await supabase.storage
+    .from('attachments')
+    .upload(path, blob, { contentType: type });
+  if (uploadError) throw uploadError;
 
-export const getAttachmentsByTransaction = (transactionId) =>
-  db.attachments.where('transactionId').equals(transactionId).toArray();
+  const { error: dbError } = await supabase.from('attachments').insert({
+    id,
+    transaction_id: transactionId,
+    name,
+    type,
+    size,
+    storage_path: path,
+  });
+  if (dbError) throw dbError;
+}
 
-export const addAttachment = (att) => db.attachments.put(att);
+export async function removeAttachment(id) {
+  const { data } = await supabase
+    .from('attachments')
+    .select('storage_path')
+    .eq('id', id)
+    .single();
+  if (data?.storage_path) {
+    await supabase.storage.from('attachments').remove([data.storage_path]);
+  }
+  await supabase.from('attachments').delete().eq('id', id);
+}
 
-export const removeAttachment = (id) => db.attachments.delete(id);
+export async function removeAttachmentsByTransaction(transactionId) {
+  const { data } = await supabase
+    .from('attachments')
+    .select('storage_path')
+    .eq('transaction_id', transactionId);
+  if (data?.length) {
+    await supabase.storage.from('attachments').remove(data.map(a => a.storage_path));
+  }
+  await supabase.from('attachments').delete().eq('transaction_id', transactionId);
+}
 
-export const removeAttachmentsByTransaction = (transactionId) =>
-  db.attachments.where('transactionId').equals(transactionId).delete();
-
-export const getAllAttachmentCounts = async () => {
-  const all = await db.attachments.toArray();
-  return all.reduce((acc, a) => {
-    acc[a.transactionId] = (acc[a.transactionId] || 0) + 1;
+export async function getAllAttachmentCounts() {
+  const { data } = await supabase.from('attachments').select('transaction_id');
+  return (data || []).reduce((acc, a) => {
+    acc[a.transaction_id] = (acc[a.transaction_id] || 0) + 1;
     return acc;
   }, {});
-};
+}
+
+export async function getAttachmentUrl(storagePath) {
+  const { data, error } = await supabase.storage
+    .from('attachments')
+    .createSignedUrl(storagePath, 300); // 5 min
+  if (error) throw error;
+  return data.signedUrl;
+}

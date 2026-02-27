@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { exportToCSV } from '../utils/storage';
-import { getAllAttachmentCounts, getAttachmentsByTransaction } from '../utils/db';
+import { getAllAttachmentCounts, getAttachmentsByTransaction, getAttachmentUrl } from '../utils/db';
 
 const fmt = n => '$' + n.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -146,17 +146,13 @@ export default function Transactions({ transactions, year, onAdd, onEdit, onDele
     setViewer({ tx: t, attachments });
   };
 
-  const openFile = (att) => {
-    const url = URL.createObjectURL(att.blob);
-    if (att.type.startsWith('image/') || att.type === 'application/pdf') {
+  const openFile = async (att) => {
+    try {
+      const url = await getAttachmentUrl(att.storage_path);
       window.open(url, '_blank', 'noopener,noreferrer');
-    } else {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = att.name;
-      a.click();
+    } catch (e) {
+      alert('Could not open file: ' + e.message);
     }
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
   };
 
   return (
