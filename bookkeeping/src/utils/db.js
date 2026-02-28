@@ -13,7 +13,7 @@ export async function addAttachment({ id, transactionId, name, type, size, blob 
   const path = `${transactionId}/${id}-${name}`;
   const { error: uploadError } = await supabase.storage
     .from('attachments')
-    .upload(path, blob, { contentType: type });
+    .upload(path, blob, { contentType: type, upsert: true });
   if (uploadError) throw uploadError;
 
   const { error: dbError } = await supabase.from('attachments').insert({
