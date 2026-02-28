@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { CATEGORIES } from '../utils/storage';
+import { CATEGORIES, upsertTransaction } from '../utils/storage';
 import { getAttachmentsByTransaction, addAttachment, removeAttachment } from '../utils/db';
 
 const fmtSize = (bytes) => {
@@ -159,7 +159,12 @@ export default function TransactionModal({ onSave, onClose, editData }) {
     }
 
     const txId = editData?.id || uuidv4();
+    const txData = { ...form, id: txId, amount: parsed, year: new Date(form.date).getFullYear() };
 
+    // 1. Save transaction first (attachments have a FK dependency on it)
+    await upsertTransaction(txData);
+
+    // 2. Then save/remove attachments
     await Promise.all(removedIds.map(id => removeAttachment(id)));
     await Promise.all(newFiles.map(nf => addAttachment({
       id: nf.id,
@@ -170,12 +175,8 @@ export default function TransactionModal({ onSave, onClose, editData }) {
       blob: nf.file,
     })));
 
-    onSave({
-      ...form,
-      id: txId,
-      amount: parsed,
-      year: new Date(form.date).getFullYear(),
-    });
+    // 3. Notify App.js to update local state
+    onSave(txData);
   };
 
   const totalAttachments = existingAttachments.length + newFiles.length;

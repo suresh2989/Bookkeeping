@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { loadTransactions, upsertTransaction, deleteTransaction } from './utils/storage';
+import { loadTransactions, deleteTransaction } from './utils/storage';
 import { removeAttachmentsByTransaction } from './utils/db';
 import { supabase } from './utils/supabase';
 import Dashboard from './components/Dashboard';
@@ -97,8 +97,8 @@ export default function App() {
     }
   }, [session]);
 
-  const handleSave = async (tx) => {
-    await upsertTransaction(tx);
+  const handleSave = (tx) => {
+    // Transaction already saved to DB by TransactionModal — just update local state
     setTransactions(prev => {
       const exists = prev.find(t => t.id === tx.id);
       return exists ? prev.map(t => t.id === tx.id ? tx : t) : [...prev, tx];
