@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { CATEGORIES, upsertTransaction } from '../utils/storage';
 import { getAttachmentsByTransaction, addAttachment, removeAttachment } from '../utils/db';
+import useIsMobile from '../utils/useIsMobile';
 
 const fmtSize = (bytes) => {
   if (bytes < 1024) return `${bytes} B`;
@@ -32,7 +33,7 @@ const styles = {
     fontFamily: "'DM Serif Display', serif", fontSize: '1.4rem',
     color: '#e8e8e0', marginBottom: 24,
   },
-  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
+  grid: (isMobile) => ({ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }),
   full: { gridColumn: '1 / -1' },
   label: {
     display: 'block', fontFamily: "'DM Mono', monospace",
@@ -101,6 +102,7 @@ const styles = {
 };
 
 export default function TransactionModal({ onSave, onClose, editData }) {
+  const isMobile = useIsMobile();
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     type: 'income',
@@ -194,7 +196,7 @@ export default function TransactionModal({ onSave, onClose, editData }) {
           ))}
         </div>
 
-        <div style={styles.grid}>
+        <div style={styles.grid(isMobile)}>
           <div>
             <label style={styles.label}>Date</label>
             <input style={styles.input} type="date" value={form.date} onChange={e => set('date', e.target.value)} />
